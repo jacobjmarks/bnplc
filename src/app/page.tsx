@@ -4,8 +4,6 @@ import { Container, Typography } from '@mui/material';
 import { LineChart } from '@mui/x-charts/LineChart';
 import { chartData } from '~/lib';
 
-console.dir(chartData, { depth: 99 })
-
 export default function Home() {
   return (
     <Container>

@@ -74,15 +74,11 @@ if (latestRepaymentDate === undefined) {
 const yearlyInterestRate = 0.06;
 const daysInYear = 365;
 
-console.log({ yearlyInterestRate, daysInYear })
-
-console.log({ repaymentSchedule_upfront, repaymentSchedule_bnpl });
-
 const iterateFrom = now;
 const iterateTo = latestRepaymentDate;
 const increment = Period.ofDays(1);
 
-let runningBalance_upfront = 0;
+let runningBalalnce_upfront = 0;
 let runningBalance_bnpl = 0;
 
 let totalInterest_upfront = 0;
@@ -128,41 +124,41 @@ const chartData: LineChartProps = {
 };
 
 for (let date = iterateFrom; date.isBefore(iterateTo) || date.isEqual(iterateTo); date = date.plus(increment)) {
-  const delta_upfront = repaymentSchedule_upfront[date.toString()] ?? 0;
-  runningBalance_upfront += delta_upfront;
+  const payment_upfront = repaymentSchedule_upfront[date.toString()] ?? 0;
+  runningBalalnce_upfront += payment_upfront;
 
-  const delta_bnpl = repaymentSchedule_bnpl[date.toString()] ?? 0;
-  runningBalance_bnpl += delta_bnpl;
+  const payment_bnpl = repaymentSchedule_bnpl[date.toString()] ?? 0;
+  runningBalance_bnpl += payment_bnpl;
 
-  const interest_upfront = runningBalance_upfront * yearlyInterestRate / daysInYear;
-  totalInterest_upfront += interest_upfront;
+  const dailyInterest_upfront = runningBalalnce_upfront * yearlyInterestRate / daysInYear;
+  totalInterest_upfront += dailyInterest_upfront;
 
-  const interest_bnpl = runningBalance_bnpl * yearlyInterestRate / daysInYear;
-  totalInterest_bnpl += interest_bnpl;
-
-  const savings = interest_upfront - interest_bnpl;
-  totalSavings += savings;
+  const dailyInterest_bnpl = runningBalance_bnpl * yearlyInterestRate / daysInYear;
+  totalInterest_bnpl += dailyInterest_bnpl;
 
   // charge interest (daily)
-  // runningBalance_upfront += interest_upfront;
-  // runningBalance_bnpl += interest_bnpl;
+  runningBalalnce_upfront += dailyInterest_upfront;
+  runningBalance_bnpl += dailyInterest_bnpl;
+
+  const savings = dailyInterest_upfront - dailyInterest_bnpl;
+  totalSavings += savings;
 
   xAxisData.push(date.toEpochDay());
   seriesAData.push(totalSavings);
   seriesBData.push(savings);
 
-  console.log({
+  /* console.log({
     date: date.toString(),
-    runningBalance_upfront: '$' + runningBalance_upfront.toFixed(2),
-    interest_upfront: '$' + interest_upfront.toFixed(2),
+    runningBalance_upfront: '$' + runningBalalnce_upfront.toFixed(2),
+    interest_upfront: '$' + dailyInterest_upfront.toFixed(2),
     totalInterest_upfront: '$' + totalInterest_upfront.toFixed(2),
     runningBalance_bnpl: '$' + runningBalance_bnpl.toFixed(2),
-    interest_bnpl: '$' + interest_bnpl.toFixed(2),
+    interest_bnpl: '$' + dailyInterest_bnpl.toFixed(2),
     totalInterest_bnpl: '$' + totalInterest_bnpl.toFixed(2),
     savings: '$' + savings.toFixed(2),
     totalSavings: '$' + totalSavings.toFixed(2),
-    repayments: '$' + delta_bnpl.toFixed(2),
-  });
+    repayments: '$' + payment_bnpl.toFixed(2),
+  }); */
 }
 
 export { chartData };
