@@ -25,8 +25,8 @@ const deductions = [
   },
 ];
 
-const repaymentSchedule_upfront: { [date: string]: number } = {};
-const repaymentSchedule_bnpl: { [date: string]: number } = {};
+const repaymentSchedule_upfront: { [date: string]: number | undefined } = {};
+const repaymentSchedule_bnpl: { [date: string]: number | undefined } = {};
 
 let totalSpend = 0;
 let latestRepaymentDate: LocalDate = undefined!;
@@ -78,20 +78,21 @@ const iterateFrom = now;
 const iterateTo = latestRepaymentDate;
 const increment = Period.ofDays(1);
 
-let runningBalalnce_upfront = 0;
-let runningBalance_bnpl = 0;
+let balanceOnWhichInterestIsCharged_upfront = 0;
+let balanceOnWhichInterestIsCharged_bnpl = 0;
 
 let totalInterest_upfront = 0;
 let totalInterest_bnpl = 0;
 let totalSavings = 0;
 
-const xAxisData: any[] = [];
-const seriesAData: (number | null)[] = [];
-const seriesBData: (number | null)[] = [];
-const chartData: LineChartProps = {
+const savingChart_xAxisData: any[] = [];
+const savingChart_seriesAData: (number | null)[] = [];
+const savingChart_seriesBData: (number | null)[] = [];
+
+const savingChartData: LineChartProps = {
   xAxis: [
     {
-      data: xAxisData,
+      data: savingChart_xAxisData,
       label: 'date',
       valueFormatter: (epochDay: number) => LocalDate.ofEpochDay(epochDay).toString(),
     },
@@ -109,43 +110,80 @@ const chartData: LineChartProps = {
   series: [
     {
       yAxisId: 'totalSavings',
-      data: seriesAData,
+      data: savingChart_seriesAData,
       showMark: ({ position: epochDay }) => repaymentSchedule_bnpl[LocalDate.ofEpochDay(epochDay as number).toString()] !== undefined,
       valueFormatter: (value) => value == null ? null : '$' + value.toFixed(2),
-      curve: 'natural',
-    }, {
+      curve: 'catmullRom',
+    },
+    {
       yAxisId: 'savings',
-      data: seriesBData,
+      data: savingChart_seriesBData,
       showMark: false,
       valueFormatter: (value) => value == null ? null : '$' + value.toFixed(2),
       curve: 'stepAfter',
-    }
+    },
   ],
 };
 
+const spendingChart_seriesAData: (number | null)[] = [];
+const spendingChart_seriesBData: (number | null)[] = [];
+
+const spendingChartData: LineChartProps = {
+  xAxis: [
+    {
+      data: savingChart_xAxisData,
+      label: 'date',
+      valueFormatter: (epochDay: number) => LocalDate.ofEpochDay(epochDay).toString(),
+    },
+  ],
+  series: [
+    {
+      data: spendingChart_seriesAData,
+      valueFormatter: (value) => value == null ? null : '$' + value.toFixed(2),
+      showMark: ({ position: epochDay }) => repaymentSchedule_upfront[LocalDate.ofEpochDay(epochDay as number).toString()] !== undefined,
+      curve: 'stepAfter',
+    },
+    {
+      data: spendingChart_seriesBData,
+      valueFormatter: (value) => value == null ? null : '$' + value.toFixed(2),
+      showMark: ({ position: epochDay }) => repaymentSchedule_bnpl[LocalDate.ofEpochDay(epochDay as number).toString()] !== undefined,
+      curve: 'stepAfter',
+    },
+  ],
+};
+
+let totalSpend_upfront = 0;
+let totalSpend_bnpl = 0;
+
 for (let date = iterateFrom; date.isBefore(iterateTo) || date.isEqual(iterateTo); date = date.plus(increment)) {
-  const payment_upfront = repaymentSchedule_upfront[date.toString()] ?? 0;
-  runningBalalnce_upfront += payment_upfront;
+  const dateString = date.toString();
 
-  const payment_bnpl = repaymentSchedule_bnpl[date.toString()] ?? 0;
-  runningBalance_bnpl += payment_bnpl;
+  const payment_upfront = repaymentSchedule_upfront[dateString];
+  totalSpend_upfront += payment_upfront ?? 0;
+  balanceOnWhichInterestIsCharged_upfront += payment_upfront ?? 0;
+  spendingChart_seriesAData.push(totalSpend_upfront);
 
-  const dailyInterest_upfront = runningBalalnce_upfront * yearlyInterestRate / daysInYear;
+  const payment_bnpl = repaymentSchedule_bnpl[dateString];
+  totalSpend_bnpl += payment_bnpl ?? 0;
+  balanceOnWhichInterestIsCharged_bnpl += payment_bnpl ?? 0;
+  spendingChart_seriesBData.push(totalSpend_bnpl);
+
+  const dailyInterest_upfront = balanceOnWhichInterestIsCharged_upfront * yearlyInterestRate / daysInYear;
   totalInterest_upfront += dailyInterest_upfront;
 
-  const dailyInterest_bnpl = runningBalance_bnpl * yearlyInterestRate / daysInYear;
+  const dailyInterest_bnpl = balanceOnWhichInterestIsCharged_bnpl * yearlyInterestRate / daysInYear;
   totalInterest_bnpl += dailyInterest_bnpl;
 
   // charge interest (daily)
-  runningBalalnce_upfront += dailyInterest_upfront;
-  runningBalance_bnpl += dailyInterest_bnpl;
+  balanceOnWhichInterestIsCharged_upfront += dailyInterest_upfront;
+  balanceOnWhichInterestIsCharged_bnpl += dailyInterest_bnpl;
 
   const savings = dailyInterest_upfront - dailyInterest_bnpl;
   totalSavings += savings;
 
-  xAxisData.push(date.toEpochDay());
-  seriesAData.push(totalSavings);
-  seriesBData.push(savings);
+  savingChart_xAxisData.push(date.toEpochDay());
+  savingChart_seriesAData.push(totalSavings);
+  savingChart_seriesBData.push(savings);
 
   /* console.log({
     date: date.toString(),
@@ -161,4 +199,4 @@ for (let date = iterateFrom; date.isBefore(iterateTo) || date.isEqual(iterateTo)
   }); */
 }
 
-export { chartData };
+export { savingChartData, spendingChartData };
