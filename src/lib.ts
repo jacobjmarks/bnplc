@@ -1,4 +1,5 @@
-import { ChronoField, ChronoUnit, Duration, LocalDate, Period, TemporalUnit } from '@js-joda/core';
+import { LocalDate, Period } from '@js-joda/core';
+import { LineChartProps } from '@mui/x-charts';
 
 type Frequency = 'daily' | 'weekly' | 'fortnightly' | 'monthly' | 'yearly';
 
@@ -37,7 +38,7 @@ for (const deduction of deductions) {
   if (repaymentSchedule_upfront[upfrontPaymentDateString] === undefined) {
     repaymentSchedule_upfront[upfrontPaymentDateString] = 0;
   }
-  repaymentSchedule_upfront[upfrontPaymentDateString] -= deduction.totalAmount;
+  repaymentSchedule_upfront[upfrontPaymentDateString] += deduction.totalAmount;
   totalSpend += deduction.totalAmount;
 
   // bnpl schedule
@@ -56,7 +57,7 @@ for (const deduction of deductions) {
     if (repaymentSchedule_bnpl[repaymentDateString] === undefined) {
       repaymentSchedule_bnpl[repaymentDateString] = 0;
     }
-    repaymentSchedule_bnpl[repaymentDateString] -= repaymentAmount;
+    repaymentSchedule_bnpl[repaymentDateString] += repaymentAmount;
 
     lastRepaymentDate = repaymentDate;
 
@@ -88,6 +89,44 @@ let totalInterest_upfront = 0;
 let totalInterest_bnpl = 0;
 let totalSavings = 0;
 
+const xAxisData: any[] = [];
+const seriesAData: (number | null)[] = [];
+const seriesBData: (number | null)[] = [];
+const chartData: LineChartProps = {
+  xAxis: [
+    {
+      data: xAxisData,
+      label: 'date',
+      valueFormatter: (epochDay: number) => LocalDate.ofEpochDay(epochDay).toString(),
+    },
+  ],
+  yAxis: [
+    { id: 'savings', label: 'savings' },
+    { id: 'totalSavings', label: 'total savings' },
+  ],
+  leftAxis: {
+    axisId: 'totalSavings',
+  },
+  rightAxis: {
+    axisId: 'savings',
+  },
+  series: [
+    {
+      yAxisId: 'totalSavings',
+      data: seriesAData,
+      showMark: ({ position: epochDay }) => repaymentSchedule_bnpl[LocalDate.ofEpochDay(epochDay as number).toString()] !== undefined,
+      valueFormatter: (value) => value == null ? null : '$' + value.toFixed(2),
+      curve: 'natural',
+    }, {
+      yAxisId: 'savings',
+      data: seriesBData,
+      showMark: false,
+      valueFormatter: (value) => value == null ? null : '$' + value.toFixed(2),
+      curve: 'stepAfter',
+    }
+  ],
+};
+
 for (let date = iterateFrom; date.isBefore(iterateTo) || date.isEqual(iterateTo); date = date.plus(increment)) {
   const delta_upfront = repaymentSchedule_upfront[date.toString()] ?? 0;
   runningBalance_upfront += delta_upfront;
@@ -101,12 +140,16 @@ for (let date = iterateFrom; date.isBefore(iterateTo) || date.isEqual(iterateTo)
   const interest_bnpl = runningBalance_bnpl * yearlyInterestRate / daysInYear;
   totalInterest_bnpl += interest_bnpl;
 
+  const savings = interest_upfront - interest_bnpl;
+  totalSavings += savings;
+
   // charge interest (daily)
   // runningBalance_upfront += interest_upfront;
   // runningBalance_bnpl += interest_bnpl;
 
-  const savings = interest_upfront - interest_bnpl;
-  totalSavings += savings;
+  xAxisData.push(date.toEpochDay());
+  seriesAData.push(totalSavings);
+  seriesBData.push(savings);
 
   console.log({
     date: date.toString(),
@@ -121,3 +164,5 @@ for (let date = iterateFrom; date.isBefore(iterateTo) || date.isEqual(iterateTo)
     repayments: '$' + delta_bnpl.toFixed(2),
   });
 }
+
+export { chartData };
